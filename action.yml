@@ -1,5 +1,5 @@
 name: Setup Singapore Mobile Proxy
-description: Route the rest of a job through a Singapore mobile IP (Singtel or M1), optionally rotate it, and verify the egress IP, country and carrier ASN.
+description: 'Route a job through a Singapore mobile IP (Singtel or M1), optionally rotate it, and verify the egress country and carrier.'
 author: Xavier Fok
 branding:
   icon: globe
