@@ -57,7 +57,7 @@ if [ -n "$PROXY_URL" ]; then
 else
   SCHEME="${IN_PROXY_SCHEME:-http}"; HOST="${IN_PROXY_HOST:-}"; PORT="${IN_PROXY_PORT:-}"
   USERNAME="${IN_PROXY_USERNAME:-}"; PASSWORD="${IN_PROXY_PASSWORD:-}"
-  [ -n "$HOST" ] && [ -n "$PORT" ] || err "set proxy-url, or proxy-host and proxy-port. If you passed secrets, check they exist in this repo (secrets are empty on pull requests from forks)."
+  if [ -z "$HOST" ] || [ -z "$PORT" ]; then err "set proxy-url, or proxy-host and proxy-port. If you passed secrets, check they exist in this repo (secrets are empty on pull requests from forks)."; fi
   is_uint "$PORT" || err "proxy-port must be a number, got '$PORT'."
   AUTH=""
   if [ -n "$USERNAME" ]; then

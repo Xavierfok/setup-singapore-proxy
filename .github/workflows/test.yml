@@ -65,7 +65,8 @@ jobs:
           [ "$O_COUNTRY" = "SG" ]
           [ "$O_ROTATED" = "true" ]
           [ "$HTTPS_PROXY" = "http://user:p%40ss%3Aw%2Frd@127.0.0.1:18701" ]
-          [ "$http_proxy" = "$HTTPS_PROXY" ]
+          # Windows env vars are case-insensitive, so http_proxy and HTTP_PROXY are one variable there
+          if [ "$RUNNER_OS" != "Windows" ]; then [ "$http_proxy" = "$HTTPS_PROXY" ]; fi
           [ "$SG_PROXY_SERVER" = "http://127.0.0.1:18701" ]
           [ "$SG_PROXY_USERNAME" = "user" ]
           [ "$SG_PROXY_PASSWORD" = "p@ss:w/rd" ]

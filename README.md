@@ -176,7 +176,8 @@ them in as shown above.
   forks, so the inputs arrive empty and the action fails with a message saying so. Run proxied jobs
   on `push`, `schedule` or `workflow_dispatch`, or on PRs from branches in the same repo.
 - **Runners.** It's a composite action using `bash` and `curl`, and is tested on `ubuntu-latest`,
-  `macos-latest` and `windows-latest`. No `jq` needed.
+  `macos-latest` and `windows-latest`. No `jq` needed. Windows environment variables are
+  case-insensitive, so there `http_proxy` and `HTTP_PROXY` are the same variable.
 - **Data use.** Everything after this step goes through the proxy, including package downloads. Put
   `setup-singapore-proxy` after `npm ci` / `pip install` to save proxy bandwidth, or clear the
   variables for steps that don't need it.
