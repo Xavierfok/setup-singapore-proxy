@@ -1,0 +1,158 @@
+name: test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck scripts/setup.sh
+
+  mock:
+    # Everything except a real modem: a local fake proxy + rotation link.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Start mock proxies
+        run: |
+          python test/mock_proxy.py 18701 user 'p@ss:w/rd' SG 'AS45143 Singapore Telecom Mobile Pte Ltd' --rotate-429 > mock1.log 2>&1 &
+          python test/mock_proxy.py 18702 user secret1 SG 'AS4773 MobileOne Ltd' > mock2.log 2>&1 &
+          python test/mock_proxy.py 18703 user secret1 US 'AS7922 Comcast Cable' > mock3.log 2>&1 &
+          python test/mock_proxy.py 18704 user secret1 SG 'AS9874 StarHub Mobile' > mock4.log 2>&1 &
+          for p in 18701 18702 18703 18704; do
+            for i in $(seq 1 30); do curl -s -o /dev/null "http://127.0.0.1:$p/ping" && break; sleep 0.5; done
+          done
+
+      # 1. host/port/user/pass inputs, a 429 on the first rotation, then verify
+      - id: singtel
+        uses: ./
+        env:
+          SG_POLL_EVERY: "1"
+        with:
+          proxy-host: 127.0.0.1
+          proxy-port: "18701"
+          proxy-username: user
+          proxy-password: p@ss:w/rd
+          rotate-url: http://127.0.0.1:18701/rotate
+          require-new-ip: "true"
+          ip-info-url: http://ipinfo.test/json
+      - name: Check outputs and exported env
+        env:
+          O_IP: ${{ steps.singtel.outputs.ip }}
+          O_ASN: ${{ steps.singtel.outputs.asn }}
+          O_CARRIER: ${{ steps.singtel.outputs.carrier }}
+          O_COUNTRY: ${{ steps.singtel.outputs.country }}
+          O_ROTATED: ${{ steps.singtel.outputs.rotated }}
+        run: |
+          set -x
+          [ "$O_IP" = "119.234.8.11" ]
+          [ "$O_ASN" = "AS45143" ]
+          [ "$O_CARRIER" = "singtel" ]
+          [ "$O_COUNTRY" = "SG" ]
+          [ "$O_ROTATED" = "true" ]
+          [ "$HTTPS_PROXY" = "http://user:p%40ss%3Aw%2Frd@127.0.0.1:18701" ]
+          [ "$http_proxy" = "$HTTPS_PROXY" ]
+          [ "$SG_PROXY_SERVER" = "http://127.0.0.1:18701" ]
+          [ "$SG_PROXY_USERNAME" = "user" ]
+          [ "$SG_PROXY_PASSWORD" = "p@ss:w/rd" ]
+          [ "$NO_PROXY" = "localhost,127.0.0.1,::1" ]
+          # later steps really go through the proxy
+          curl -sS --fail http://ipinfo.test/json | grep -q '"country": "SG"'
+
+      # 2. full proxy-url input, M1, no rotation
+      - id: m1
+        uses: ./
+        with:
+          proxy-url: http://user:secret1@127.0.0.1:18702
+          ip-info-url: http://ipinfo.test/json
+          export-env: "false"
+      - run: '[ "${{ steps.m1.outputs.carrier }}" = "m1" ] && [ "${{ steps.m1.outputs.asn }}" = "AS4773" ] && [ "${{ steps.m1.outputs.rotated }}" = "false" ]'
+
+      # 3. not in Singapore -> must fail
+      - id: us
+        continue-on-error: true
+        uses: ./
+        with:
+          proxy-url: http://user:secret1@127.0.0.1:18703
+          ip-info-url: http://ipinfo.test/json
+          export-env: "false"
+      - run: '[ "${{ steps.us.outcome }}" = "failure" ]'
+
+      # 4. StarHub is SG but not in the default allowed-carriers -> must fail
+      - id: starhub
+        continue-on-error: true
+        uses: ./
+        with:
+          proxy-url: http://user:secret1@127.0.0.1:18704
+          ip-info-url: http://ipinfo.test/json
+          export-env: "false"
+      - run: '[ "${{ steps.starhub.outcome }}" = "failure" ]'
+
+      # 5. ...and passes once it is allowed
+      - id: starhub_ok
+        uses: ./
+        with:
+          proxy-url: http://user:secret1@127.0.0.1:18704
+          allowed-carriers: singtel, m1, StarHub
+          ip-info-url: http://ipinfo.test/json
+          export-env: "false"
+      - run: '[ "${{ steps.starhub_ok.outputs.carrier }}" = "starhub" ]'
+
+      # 6. wrong password -> must fail (mock answers 407)
+      - id: badauth
+        continue-on-error: true
+        uses: ./
+        with:
+          proxy-url: http://user:wrong-password@127.0.0.1:18702
+          ip-info-url: http://ipinfo.test/json
+          export-env: "false"
+      - run: '[ "${{ steps.badauth.outcome }}" = "failure" ]'
+
+      # 7. no proxy configured -> must fail with a clear message
+      - id: empty
+        continue-on-error: true
+        uses: ./
+      - run: '[ "${{ steps.empty.outcome }}" = "failure" ]'
+
+      # 8. verify off: just exports, never touches the network
+      - id: noverify
+        uses: ./
+        with:
+          proxy-url: http://user:secret1@127.0.0.1:1
+          verify: "false"
+      - run: '[ "$SG_PROXY_SERVER" = "http://127.0.0.1:1" ] && [ -z "${{ steps.noverify.outputs.ip }}" ]'
+
+      - name: Mock logs
+        if: always()
+        run: tail -n 50 mock*.log
+
+  live:
+    # Runs against a real port only when the repo has the secret (never on fork PRs).
+    runs-on: ubuntu-latest
+    env:
+      SMP_PROXY_URL: ${{ secrets.SMP_PROXY_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - if: env.SMP_PROXY_URL == ''
+        run: echo "::notice::SMP_PROXY_URL secret not set, skipping the live check."
+      - id: live
+        if: env.SMP_PROXY_URL != ''
+        uses: ./
+        with:
+          proxy-url: ${{ secrets.SMP_PROXY_URL }}
+      - if: env.SMP_PROXY_URL != ''
+        run: echo "Live egress ${{ steps.live.outputs.ip }} ${{ steps.live.outputs.asn }} ${{ steps.live.outputs.carrier }}"

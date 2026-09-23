@@ -1,0 +1,108 @@
+name: Setup Singapore Mobile Proxy
+description: Route the rest of a job through a Singapore mobile IP (Singtel or M1), optionally rotate it, and verify the egress IP, country and carrier ASN.
+author: Xavier Fok
+branding:
+  icon: globe
+  color: red
+
+inputs:
+  proxy-url:
+    description: Full proxy URL, e.g. http://user:pass@host:port. Use this OR the host/port/username/password inputs.
+    required: false
+    default: ""
+  proxy-host:
+    description: Proxy hostname (used when proxy-url is empty).
+    required: false
+    default: ""
+  proxy-port:
+    description: Proxy port (used when proxy-url is empty).
+    required: false
+    default: ""
+  proxy-username:
+    description: Proxy username (used when proxy-url is empty).
+    required: false
+    default: ""
+  proxy-password:
+    description: Proxy password (used when proxy-url is empty).
+    required: false
+    default: ""
+  proxy-scheme:
+    description: Scheme when building the URL from parts. http, socks5 or socks5h.
+    required: false
+    default: http
+  rotate-url:
+    description: Optional rotation link. When set, the action calls it before verifying and waits for a new IP.
+    required: false
+    default: ""
+  rotate-timeout:
+    description: Seconds to wait for the IP to change after the rotation link accepts the request.
+    required: false
+    default: "90"
+  rotate-max-wait:
+    description: Longest Retry-After (seconds) the action will sleep out when the rotation link answers 429. Above this it fails instead.
+    required: false
+    default: "300"
+  require-new-ip:
+    description: Fail if the IP is still the same after rotating. Mobile carriers sometimes hand the same IP back, so this is off by default.
+    required: false
+    default: "false"
+  verify:
+    description: Check the egress IP through the proxy and fail unless it is in Singapore on an allowed carrier.
+    required: false
+    default: "true"
+  allowed-carriers:
+    description: Comma-separated carriers the egress ASN must belong to. Known values are singtel, m1, starhub.
+    required: false
+    default: singtel,m1
+  ip-info-url:
+    description: IP lookup that returns ipinfo.io-style JSON (ip, country, org = "AS<number> <name>").
+    required: false
+    default: https://ipinfo.io/json
+  export-env:
+    description: Export HTTP_PROXY, HTTPS_PROXY, ALL_PROXY (and lowercase) plus SG_PROXY_* to later steps.
+    required: false
+    default: "true"
+  no-proxy:
+    description: Value for NO_PROXY / no_proxy.
+    required: false
+    default: localhost,127.0.0.1,::1
+
+outputs:
+  ip:
+    description: Egress IP seen through the proxy (empty when verify is false and no rotation ran).
+    value: ${{ steps.run.outputs.ip }}
+  country:
+    description: Two-letter country code of the egress IP.
+    value: ${{ steps.run.outputs.country }}
+  asn:
+    description: Egress ASN, e.g. AS45143.
+    value: ${{ steps.run.outputs.asn }}
+  carrier:
+    description: singtel, m1, starhub or unknown.
+    value: ${{ steps.run.outputs.carrier }}
+  rotated:
+    description: true when a rotation ran and the IP changed.
+    value: ${{ steps.run.outputs.rotated }}
+
+runs:
+  using: composite
+  steps:
+    - id: run
+      shell: bash
+      run: bash "$GITHUB_ACTION_PATH/scripts/setup.sh"
+      env:
+        IN_PROXY_URL: ${{ inputs.proxy-url }}
+        IN_PROXY_HOST: ${{ inputs.proxy-host }}
+        IN_PROXY_PORT: ${{ inputs.proxy-port }}
+        IN_PROXY_USERNAME: ${{ inputs.proxy-username }}
+        IN_PROXY_PASSWORD: ${{ inputs.proxy-password }}
+        IN_PROXY_SCHEME: ${{ inputs.proxy-scheme }}
+        IN_ROTATE_URL: ${{ inputs.rotate-url }}
+        IN_ROTATE_TIMEOUT: ${{ inputs.rotate-timeout }}
+        IN_ROTATE_MAX_WAIT: ${{ inputs.rotate-max-wait }}
+        IN_REQUIRE_NEW_IP: ${{ inputs.require-new-ip }}
+        IN_VERIFY: ${{ inputs.verify }}
+        IN_ALLOWED_CARRIERS: ${{ inputs.allowed-carriers }}
+        IN_IP_INFO_URL: ${{ inputs.ip-info-url }}
+        IN_EXPORT_ENV: ${{ inputs.export-env }}
+        IN_NO_PROXY: ${{ inputs.no-proxy }}
