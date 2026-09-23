@@ -15,7 +15,7 @@ checks see what a phone user in Singapore sees. It:
 
 It works with any HTTP or SOCKS5 proxy. It was built for
 [Singapore Mobile Proxy](https://singaporemobileproxy.com/?utm_source=github&utm_medium=action) ports,
-which sit on real 4G/5G modems with Singtel or M1 SIM cards.
+which sit on real 4G modems with Singtel or M1 SIM cards.
 
 ## Usage
 
