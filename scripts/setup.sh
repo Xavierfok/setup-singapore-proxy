@@ -8,12 +8,13 @@ POLL_EVERY="${SG_POLL_EVERY:-3}"            # seconds between IP checks after ro
 DEFAULT_RETRY_AFTER="${SG_DEFAULT_RETRY_AFTER:-240}"  # SMP's per-modem rotation cooldown
 
 # Customer-visible egress ASNs first, then each carrier's company/fixed ASNs.
-# Singtel mobile data = AS45143, M1 mobile data = AS4773, StarHub mobile = AS9874.
+# Singtel mobile data = AS45143, M1 mobile data = AS4773, StarHub mobile = AS138345
+# (STARHUB-MOBILE2; the older AS9874 STARHUB-MOBILE announces no prefixes, kept for old IP data).
 carrier_for_asn() {
   case "$1" in
     45143|7473) echo singtel ;;
     4773|17547) echo m1 ;;
-    9874|4657|55430) echo starhub ;;
+    138345|9874|4657|55430) echo starhub ;;
     *) echo unknown ;;
   esac
 }

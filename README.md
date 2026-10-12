@@ -154,7 +154,10 @@ company. The action accepts both:
 |---|---|---|
 | Singtel | AS45143 SINGTELMOBILE | AS7473 |
 | M1 | AS4773 MOBILEONELTD | AS17547 |
-| StarHub | AS9874 STARHUB-MOBILE | AS4657, AS55430 |
+| StarHub | AS138345 STARHUB-MOBILE2 | AS9874, AS4657, AS55430 |
+
+AS9874 (STARHUB-MOBILE) is StarHub's older mobile ASN. It announces no prefixes today; StarHub's mobile
+prefixes are announced from AS138345. AS9874 stays in the list for stale IP databases.
 
 StarHub isn't in the default `allowed-carriers` because Singapore Mobile Proxy only runs Singtel and
 M1 SIMs. Add it if your provider uses StarHub.
