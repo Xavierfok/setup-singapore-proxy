@@ -32,7 +32,7 @@ jobs:
           python test/mock_proxy.py 18701 user 'p@ss:w/rd' SG 'AS45143 Singapore Telecom Mobile Pte Ltd' --rotate-429 > mock1.log 2>&1 &
           python test/mock_proxy.py 18702 user secret1 SG 'AS4773 MobileOne Ltd' > mock2.log 2>&1 &
           python test/mock_proxy.py 18703 user secret1 US 'AS7922 Comcast Cable' > mock3.log 2>&1 &
-          python test/mock_proxy.py 18704 user secret1 SG 'AS9874 StarHub Mobile' > mock4.log 2>&1 &
+          python test/mock_proxy.py 18704 user secret1 SG 'AS138345 StarHub Ltd' > mock4.log 2>&1 &
           for p in 18701 18702 18703 18704; do
             for i in $(seq 1 30); do curl -s -o /dev/null "http://127.0.0.1:$p/ping" && break; sleep 0.5; done
           done
@@ -111,7 +111,7 @@ jobs:
           allowed-carriers: singtel, m1, StarHub
           ip-info-url: http://ipinfo.test/json
           export-env: "false"
-      - run: '[ "${{ steps.starhub_ok.outputs.carrier }}" = "starhub" ]'
+      - run: '[ "${{ steps.starhub_ok.outputs.carrier }}" = "starhub" ] && [ "${{ steps.starhub_ok.outputs.asn }}" = "AS138345" ]'
 
       # 6. wrong password -> must fail (mock answers 407)
       - id: badauth
